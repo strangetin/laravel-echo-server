@@ -125,7 +125,9 @@ export class PrivateChannel {
      * Prepare headers for request to app server.
      */
     protected prepareHeaders(socket: any, options: any): any {
-        options.headers['Cookie'] = options.headers['Cookie'] || socket.request.headers.cookie;
+        if (options.headers['Cookie'] || socket.request.headers.cookie) {
+            options.headers['Cookie'] = options.headers['Cookie'] || socket.request.headers.cookie;
+        }
         options.headers['X-Requested-With'] = 'XMLHttpRequest';
 
         return options.headers;

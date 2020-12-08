@@ -1,6 +1,6 @@
 {
   "name": "strangetin-echo-server",
-  "version": "1.6.2",
+  "version": "1.6.5",
   "description": "Laravel Echo Node JS Server for Socket.io",
   "repository": {
     "type": "git",
