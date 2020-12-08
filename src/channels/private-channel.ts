@@ -1,9 +1,14 @@
 let request = require('request');
 let url = require('url');
-import { Channel } from './channel';
-import { Log } from './../log';
+import axios from 'axios';
+import {Log} from '../log';
 
 export class PrivateChannel {
+    /**
+     * Request client.
+     */
+    private request: any;
+
     /**
      * Create a new private channel instance.
      */
@@ -12,24 +17,22 @@ export class PrivateChannel {
     }
 
     /**
-     * Request client.
-     */
-    private request: any;
-
-    /**
      * Send authentication request to application server.
      */
     authenticate(socket: any, data: any): Promise<any> {
+
+        if (this.options.devMode) {
+            Log.info(`[Data from socket for auth\n`);
+        }
+        console.log('data from socket', data)
+        console.log('\n')
+
         let options = {
             url: this.authHost(socket) + this.options.authEndpoint,
-            form: { channel_name: data.channel },
+            form: {channel_name: data.channel},
             headers: (data.auth && data.auth.headers) ? data.auth.headers : {},
             rejectUnauthorized: false
         };
-
-        if (this.options.devMode) {
-            Log.info(`[${new Date().toLocaleTimeString()}] - Sending auth request to: ${options.url}\n`);
-        }
 
         return this.serverRequest(socket, options);
     }
@@ -57,7 +60,7 @@ export class PrivateChannel {
                     authHostSelected = `${referer.protocol}//${referer.host}`;
                     break;
                 }
-            };
+            }
         }
 
         if (this.options.devMode) {
@@ -82,37 +85,39 @@ export class PrivateChannel {
     protected serverRequest(socket: any, options: any): Promise<any> {
         return new Promise<any>((resolve, reject) => {
             options.headers = this.prepareHeaders(socket, options);
-            let body;
-
-            this.request.post(options, (error, response, body, next) => {
-                if (error) {
-                    if (this.options.devMode) {
-                        Log.error(`[${new Date().toLocaleTimeString()}] - Error authenticating ${socket.id} for ${options.form.channel_name}`);
-                        Log.error(error);
-                    }
-
-                    reject({ reason: 'Error sending authentication request.', status: 0 });
-                } else if (response.statusCode !== 200) {
+            axios.post(options.url, options.form, {
+                headers: options.headers
+            }).then(r => {
+                if (r.status !== 200) {
                     if (this.options.devMode) {
                         Log.warning(`[${new Date().toLocaleTimeString()}] - ${socket.id} could not be authenticated to ${options.form.channel_name}`);
-                        Log.error(response.body);
+                        Log.error(r.data);
                     }
 
-                    reject({ reason: 'Client can not be authenticated, got HTTP status ' + response.statusCode, status: response.statusCode });
+                    reject({reason: 'Client can not be authenticated, got HTTP status ' + r.status, status: r.status});
                 } else {
                     if (this.options.devMode) {
                         Log.info(`[${new Date().toLocaleTimeString()}] - ${socket.id} authenticated for: ${options.form.channel_name}`);
                     }
 
+                    let body
+
                     try {
-                        body = JSON.parse(response.body);
+                        body = JSON.parse(r.data);
                     } catch (e) {
-                        body = response.body
+                        body = r.data
                     }
 
                     resolve(body);
                 }
-            });
+            }).catch(error => {
+                if (this.options.devMode) {
+                    Log.error(`[${new Date().toLocaleTimeString()}] - Error authenticating ${socket.id} for ${options.form.channel_name}`);
+                    Log.error(error);
+                }
+
+                reject({reason: 'Error sending authentication request.', status: 0});
+            })
         });
     }
 
